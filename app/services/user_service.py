@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from app.schemas.user_schema import UserCreate, UserLogin
 from app.models.user_model import User
 from fastapi import HTTPException, status
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 
 def create_user(db: Session, user: UserCreate):
     exit_user = db.query(User).filter(User.user_name == user.user_name).first()
@@ -13,7 +13,7 @@ def create_user(db: Session, user: UserCreate):
     hasded_password = hash_password(user.password)
     new_user = User(
         user_name = user.user_name,
-        hashed_password = user.password
+        hashed_password = hasded_password
     )
 
     db.add(new_user)
@@ -27,10 +27,7 @@ def user_login(db: Session, user: UserLogin):
     if not exit_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
-    exit_password = db.query(User).filter(User.hashed_password == user.password).first()
-    hashed_password = hash_password(user.password)
-
-    if not exit_password:
+    if not verify_password(user.password, exit_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
-    return user
+    return exit_user
